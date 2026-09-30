@@ -12,7 +12,7 @@ test('画面結合：10問、電卓転記、複合仕訳、誤答比較、復習
   const dom=new JSDOM(html,{url:'https://unit.example/repo/',pretendToBeVisual:true});
   for(const key of ['window','document','navigator','location','localStorage'])Object.defineProperty(globalThis,key,{value:key==='window'?dom.window:dom.window[key],configurable:true});
   globalThis.indexedDB=indexedDB;
-  globalThis.ResizeObserver=class{observe(){}};
+  globalThis.ResizeObserver=class{observe(){}disconnect(){}};
   globalThis.requestAnimationFrame=fn=>setTimeout(fn,0);
   dom.window.scrollTo=()=>{};dom.window.HTMLElement.prototype.scrollIntoView=()=>{};
   dom.window.HTMLDialogElement.prototype.showModal=function(){this.setAttribute('open','');};
@@ -26,7 +26,11 @@ test('画面結合：10問、電卓転記、複合仕訳、誤答比較、復習
   const fill=async(side,index,account,keys)=>{
     click(`[data-action="account"][data-side="${side}"][data-index="${index}"]`);
     assert.ok($('#account-dialog[open]'));
+    // 科目選択中も問題文が表示されている。
+    assert.equal($('#account-question').textContent,$('.question-text').textContent);
     const option=[...document.querySelectorAll('[data-account]')].find(b=>b.dataset.account===account);assert.ok(option,account);option.click();
+    // 金額入力（電卓表示）中も問題文を固定表示するクラスが付く。
+    assert.ok(document.body.classList.contains('answering'));assert.ok(document.body.classList.contains('calc-open'));
     for(const k of keys)key(k);
     click('[data-action="apply-amount"]');
     await wait(()=>$( `[data-row="${side}-${index}"] .amount-button`).textContent!=='金額');
@@ -58,6 +62,7 @@ test('画面結合：10問、電卓転記、複合仕訳、誤答比較、復習
     click('[data-action="apply-amount"]');
     await fill('credit',0,'買掛金',['8','5','000']);
     click('[data-action="submit"]');await wait(()=>!!$('.feedback.incorrect'));
+    assert.ok(!document.body.classList.contains('answering'));
     assert.match($('.feedback').textContent,/あなたの回答/);assert.match($('.feedback').textContent,/正しい仕訳/);
     // 残り7問を「わからない」として記録し、10問で確実に終了する。
     for(let i=3;i<10;i++){click('[data-action="next"]');await wait(()=>!!$('#answer-editor'));click('[data-action="skip"]');await wait(()=>!!$('.feedback.incorrect'));}

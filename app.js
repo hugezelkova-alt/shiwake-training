@@ -107,7 +107,7 @@ function help() {
     `<section class="card"><h2>1問ずつ、高速に</h2><ol class="steps"><li>レベルとモードを選び、開始。</li><li>借方・貸方の科目を候補から選択。</li><li>金額欄をタップし、下の電卓で入力。</li><li>「金額に反映」で転記し、「回答する」。</li><li>短い解説を確認して、次へ。</li></ol><p class="small muted">通常問題は10〜30秒が目安。計算問題は正確さを優先しましょう。アプリを離れている間は計測を止めます。</p></section>
     <section class="card"><h2>iPhoneでアプリにする</h2><ol class="steps"><li>公開URLをSafariで開く。</li><li>上部が「オフライン準備完了」になるのを待つ。</li><li>共有 → ホーム画面に追加 → 追加。表示される場合は「ウェブアプリとして開く」をオン。</li><li>ホーム画面のアイコンからオンラインで一度起動し、準備完了を確認。</li><li>機内モードにしてアプリを閉じ、アイコンから再起動。</li></ol><p class="small muted">保存領域がSafariとホーム画面アプリで分かれる場合があります。以後はホーム画面側に統一して学習してください。</p><p id="offline-detail" class="small">${offlineReady?'すべての学習ファイルを保存済みです。':'通信できる状態で、画面上部の準備完了を確認してください。'}</p><button class="secondary full" data-action="check-update">オフライン準備・更新を確認</button></section>
     <section class="card"><h2>学習データのバックアップ</h2><p>履歴はこの端末に保存されます。機種変更やSafariのデータ削除に備え、定期的に書き出してください。</p><button class="primary full" data-action="export">履歴をJSONで書き出す</button><label class="secondary full file-label">バックアップを読み込む<input id="import-file" type="file" accept=".json,application/json"></label><p class="small muted">読み込みは既存履歴に統合し、同じ回答は重複させません。選択レベルはバックアップの設定になり、回答途中の問題は終了します。バックアップは公開用リポジトリに入れないでください。</p></section>
-    <section class="card"><h2>出題・採点の約束</h2><p>金額の単位は円。消費税は指定された問題だけで考慮します。指定された処理方法と科目で回答してください。</p><p>複合仕訳は行の順序を問いません。同じ側の同一科目は合算して採点します。借方と貸方の相殺はしません。</p><p>「わからない」は誤答として記録。「間違えた問題」は、その後に正解すると一覧から外れます。出題済み100問は試験範囲の一部です。</p><p class="small muted">問題データ ${BANK_VERSION} · アプリ 1.0.0<br>端末の容量不足・データ削除等による消失を完全には防げません。</p></section>`;
+    <section class="card"><h2>出題・採点の約束</h2><p>金額の単位は円。消費税は指定された問題だけで考慮します。指定された処理方法と科目で回答してください。</p><p>複合仕訳は行の順序を問いません。同じ側の同一科目は合算して採点します。借方と貸方の相殺はしません。</p><p>「わからない」は誤答として記録。「間違えた問題」は、その後に正解すると一覧から外れます。出題済み100問は試験範囲の一部です。</p><p class="small muted">問題データ ${BANK_VERSION} · アプリ 1.0.1<br>端末の容量不足・データ削除等による消失を完全には防げません。</p></section>`;
 }
 async function createSession(mode=settings.mode,category='',force=false) {
   const source=reviewPool(filterLevel(QUESTIONS,settings.level),attempts,mode,category);
@@ -133,7 +133,7 @@ function train() {
     <div class="question-progress"><span>${esc(modeNames[session.mode])}</span><strong>${i} <span>/ ${total}</span></strong></div>
     <article class="question-card"><div class="question-meta"><span class="pill">${esc(q.category)}</span><span class="small muted">${LEVELS[q.level]} · ${q.requiresCalculation?'計算あり':'瞬発'} · ${'●'.repeat(q.difficulty)}${'○'.repeat(3-q.difficulty)}</span></div><h1 class="question-text">${esc(q.prompt)}</h1><div class="question-foot"><span>金額：円 / 指示のない消費税は考慮不要</span><span>${q.id}</span></div></article>
     ${session.feedback?feedbackMarkup(q):`<div id="answer-editor" class="answer-editor">${rowsMarkup('debit')}${rowsMarkup('credit')}</div><div class="balance"><span>借方合計 <b id="debit-total">${num(totalSide('debit'))}</b></span><span>貸方合計 <b id="credit-total">${num(totalSide('credit'))}</b></span></div><p class="entry-hint small muted">科目を選ぶ → 金額をタップ → 電卓で入力</p><button class="text-button skip-button" data-action="skip">わからない · 解答を見る</button><p id="answer-error" class="inline-error" role="alert"></p>`}`;
-  renderDock();startTimer();
+  renderDock();observeQuestion();startTimer();
 }
 function totalSide(side){return session.draft[side].reduce((s,r)=>s+(Number(r.amount)||0),0);}
 function renderEditor(){const el=$('#answer-editor');if(el){el.innerHTML=rowsMarkup('debit')+rowsMarkup('credit');$('#debit-total').textContent=num(totalSide('debit'));$('#credit-total').textContent=num(totalSide('credit'));}}
@@ -149,8 +149,11 @@ function feedbackMarkup(q) {
 function targetLabel(){if(!calc.target)return '金額欄をタップして選択';const {side,index}=calc.target;const row=session?.draft[side]?.[index];return `${side==='debit'?'借方':'貸方'} ${index+1}行目${row?.account?` · ${row.account}`:''}`;}
 function calcResult(){return evaluateExpression(calc.expression);}
 function renderDock() {
-  if(route!=='train'||!session){dock.hidden=true;document.body.classList.remove('training');return;}
+  if(route!=='train'||!session){dock.hidden=true;document.body.classList.remove('training','answering','calc-open');return;}
   dock.hidden=false;document.body.classList.add('training');
+  // 回答入力中は問題文を画面上部に固定し、電卓を開いている間はコンパクト表示にする。
+  document.body.classList.toggle('answering',!session.feedback);
+  document.body.classList.toggle('calc-open',!session.feedback&&calc.open);
   if(session.feedback){dock.innerHTML=`<button class="primary full next-button" data-action="next">${session.mode!=='endless'&&session.index===session.queue.length-1?'結果を見る':'次の問題'} <span aria-hidden="true">→</span></button>`;resizeDock();return;}
   dock.innerHTML=`<div class="calc-toolbar"><button class="text-button calc-toggle" data-action="toggle-calc">${calc.open?'⌄ 電卓を閉じる':'▦ 電卓を開く'}</button><span id="calc-target" class="small muted">${esc(targetLabel())}</span></div>
     <div id="calculator" ${calc.open?'':'hidden'}><div class="calc-screen"><div id="calc-expression" class="calc-expression"></div><div id="calc-result" class="calc-result" aria-live="polite"></div></div>
@@ -169,10 +172,21 @@ function refreshCalc(){
 }
 function resizeDock(){requestAnimationFrame(()=>document.documentElement.style.setProperty('--dock-height',`${dock.hidden?0:dock.getBoundingClientRect().height}px`));}
 new ResizeObserver(resizeDock).observe(dock);
+// 固定表示した問題文の高さを記録し、入力行が問題文の裏に隠れないようにする。
+const questionObserver=new ResizeObserver(entries=>{for(const e of entries)document.documentElement.style.setProperty('--question-height',`${Math.ceil(e.target.getBoundingClientRect().height)}px`);});
+function observeQuestion(){questionObserver.disconnect();const card=$('.question-card');if(card)questionObserver.observe(card);}
 function selectAmount(side,index){
   calc.target={side,index};calc.expression=String(session.draft[side][index].amount);calc.rounding='exact';calc.open=true;calc.justEvaluated=true;
   renderEditor();renderDock();
-  requestAnimationFrame(()=>{const row=$(`[data-row="${side}-${index}"]`);row?.scrollIntoView({block:'center',behavior:'smooth'});});
+  // 電卓の高さが確定した後で、選んだ行を「固定表示の問題文」と「電卓」の間に収める。
+  requestAnimationFrame(()=>requestAnimationFrame(()=>revealRow(side,index)));
+}
+function revealRow(side,index){
+  const row=$(`[data-row="${side}-${index}"]`);if(!row)return;
+  const card=$('.question-card'), r=row.getBoundingClientRect();
+  const top=(card?card.getBoundingClientRect().bottom:0)+8, bottom=(dock.hidden?window.innerHeight:dock.getBoundingClientRect().top)-8;
+  if(r.bottom>bottom)window.scrollBy({top:r.bottom-bottom,behavior:'smooth'});
+  else if(r.top<top)window.scrollBy({top:r.top-top,behavior:'smooth'});
 }
 function keyInput(key){
   if(key==='='){
@@ -196,7 +210,9 @@ async function applyAmount(){
 }
 function openAccounts(side,index){
   accountTarget={side,index};showAllAccounts=false;$('#account-search').value='';
-  $('#account-title').textContent=`${side==='debit'?'借方':'貸方'} ${index+1}行目の科目`;renderAccounts();
+  $('#account-title').textContent=`${side==='debit'?'借方':'貸方'} ${index+1}行目の科目`;
+  // 科目選択中も問題文を読めるよう、ダイアログ上部に同じ問題文を表示する。
+  $('#account-question').textContent=current()?.prompt||'';renderAccounts();
   $('#account-dialog').showModal();$('#account-dialog .icon-button').focus();
 }
 function renderAccounts(){
@@ -258,6 +274,7 @@ async function renderRoute(){
   $('#main-nav').hidden=route==='train';
   document.querySelectorAll('[data-nav]').forEach(a=>{a.setAttribute('aria-current',a.dataset.nav===route?'page':'false');});
   dock.hidden=route!=='train';document.body.classList.toggle('training',route==='train');
+  if(route!=='train')document.body.classList.remove('answering','calc-open');
   ({home,review,stats:statsScreen,help,train,summary})[route]();
   window.scrollTo({top:0});app.focus({preventScroll:true});
 }
