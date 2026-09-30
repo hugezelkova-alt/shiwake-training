@@ -3,15 +3,15 @@ import assert from 'node:assert/strict';
 import {QUESTIONS,LEVELS} from '../questions.js';
 import {validateBank,gradeAnswer,validateAnswer,normalizeSide,evaluateExpression,appendKey,filterLevel,shuffle,questionStats,reviewPool,periodStats,streak,validateBackup} from '../core.js';
 
-test('300問（2級70・簿記論230）・ID一意・全正答の貸借一致・計算問題の収録',()=>{
-  assert.equal(QUESTIONS.length,300);assert.equal(validateBank(QUESTIONS),true);
-  assert.equal(filterLevel(QUESTIONS,'bookkeeping2').length,70);assert.equal(filterLevel(QUESTIONS,'zeirishi_boki').length,230);
+test('327問（2級70・簿記論257）・ID一意・全正答の貸借一致・計算問題の収録',()=>{
+  assert.equal(QUESTIONS.length,327);assert.equal(validateBank(QUESTIONS),true);
+  assert.equal(filterLevel(QUESTIONS,'bookkeeping2').length,70);assert.equal(filterLevel(QUESTIONS,'zeirishi_boki').length,257);
   assert.ok(filterLevel(QUESTIONS,'zeirishi_boki').filter(q=>q.requiresCalculation).length>=140);
   assert.ok(new Set(QUESTIONS.map(q=>q.category)).size>=50);
   // 正答の科目を誤答候補（distractors）に含めない。
   for(const q of QUESTIONS)for(const l of [...q.debit,...q.credit])assert.ok(!q.distractors.includes(l.account),`${q.id} ${l.account}`);
 });
-test('全300問：複合仕訳の並べ替えを許容し、片側金額の誤りを不正解にする',()=>{
+test('全327問：複合仕訳の並べ替えを許容し、片側金額の誤りを不正解にする',()=>{
   for(const q of QUESTIONS){
     const answer={debit:[...q.debit].reverse(),credit:[...q.credit].reverse()};
     assert.equal(gradeAnswer(answer,q),true,q.id);
@@ -65,7 +65,7 @@ test('誤答は直近の回答で解消。レベル・苦手論点・解答時�
 });
 test('ランダム10/30の元データ重複なし、レベル混合・配列非破壊',()=>{
   const source=filterLevel(QUESTIONS,'both'), out=shuffle(source);
-  assert.equal(source.length,300);assert.equal(out.length,300);assert.equal(new Set(out.slice(0,30).map(q=>q.id)).size,30);assert.equal(source[0].id,'B001');
+  assert.equal(source.length,327);assert.equal(out.length,327);assert.equal(new Set(out.slice(0,30).map(q=>q.id)).size,30);assert.equal(source[0].id,'B001');
 });
 test('バックアップ：通常・スキップの空行・不要な空行・不正入力の検証',()=>{
   const a=row('B001',true,1000);a.answer=structuredClone(a.answer);a.answer.debit.push({account:'',amount:''});
@@ -165,7 +165,29 @@ test('会計計算の独立検算：簿記論の正答金額と式の照合',()=
     ['Z222','debit','資本剰余金',120000-1000000*.1],
     ['Z224','debit','売上高',10000*.3],
     ['Z228','credit','移転損益',350000-(400000-100000)],
-    ['Z229','debit','子会社株式',400000-100000]
+    ['Z229','debit','子会社株式',400000-100000],
+    // 追加分（2026-09-30.4）
+    ['Z231','credit','非支配株主持分',11000*.2],
+    ['Z232','debit','のれん償却',10*105],
+    ['Z233','debit','のれん',90*110-(100*100-10*105)],
+    ['Z234','debit','受取配当金',100*108*.8],
+    ['Z235','debit','子会社株式評価損',10000*100-4000*110],
+    ['Z236','credit','その他有価証券評価差額金',(1050-1000)*110],
+    ['Z236','credit','為替差損益',1000*(110-100)],
+    ['Z238','debit','投資有価証券',40000*.3],
+    ['Z239','credit','退職給付に係る調整額',5000*(1-.3)],
+    ['Z240','debit','非支配株主持分',20000*(1-.3)*.2],
+    ['Z241','credit','繰延税金負債',2000*.3],
+    ['Z242','credit','減価償却費',50000/5],
+    ['Z243','debit','利益剰余金',20000-20000*.3],
+    ['Z244','credit','完成工事高',1000000*540000/900000-300000],
+    ['Z245','debit','工事損失引当金繰入',(1100000-1000000)-(660000-600000)],
+    ['Z248','credit','完成工事高',(1000000+100000)*.3],
+    ['Z251','debit','退職給付費用',(15000-10000)/10],
+    ['Z252','debit','繰延税金資産',400000*.3],
+    ['Z253','debit','その他有価証券評価差額金',(200000-150000)*(1-.3)],
+    ['Z256','credit','長期前受収益',1000000-(1200000-400000)],
+    ['Z257','debit','繰延税金負債',210000/(1-.3)/10*.3]
   ];
   for(const [id,side,account,expected]of checks)assert.equal(QUESTIONS.find(q=>q.id===id)[side].find(r=>r.account===account).amount,Math.round(expected*1e6)/1e6,id);
 });
