@@ -3,15 +3,15 @@ import assert from 'node:assert/strict';
 import {QUESTIONS,LEVELS} from '../questions.js';
 import {validateBank,gradeAnswer,validateAnswer,normalizeSide,evaluateExpression,appendKey,filterLevel,shuffle,questionStats,reviewPool,periodStats,streak,validateBackup} from '../core.js';
 
-test('200問（2級70・簿記論130）・ID一意・全正答の貸借一致・計算問題の収録',()=>{
-  assert.equal(QUESTIONS.length,200);assert.equal(validateBank(QUESTIONS),true);
-  assert.equal(filterLevel(QUESTIONS,'bookkeeping2').length,70);assert.equal(filterLevel(QUESTIONS,'zeirishi_boki').length,130);
-  assert.ok(filterLevel(QUESTIONS,'zeirishi_boki').filter(q=>q.requiresCalculation).length>=80);
-  assert.ok(new Set(QUESTIONS.map(q=>q.category)).size>=45);
+test('300問（2級70・簿記論230）・ID一意・全正答の貸借一致・計算問題の収録',()=>{
+  assert.equal(QUESTIONS.length,300);assert.equal(validateBank(QUESTIONS),true);
+  assert.equal(filterLevel(QUESTIONS,'bookkeeping2').length,70);assert.equal(filterLevel(QUESTIONS,'zeirishi_boki').length,230);
+  assert.ok(filterLevel(QUESTIONS,'zeirishi_boki').filter(q=>q.requiresCalculation).length>=140);
+  assert.ok(new Set(QUESTIONS.map(q=>q.category)).size>=50);
   // 正答の科目を誤答候補（distractors）に含めない。
   for(const q of QUESTIONS)for(const l of [...q.debit,...q.credit])assert.ok(!q.distractors.includes(l.account),`${q.id} ${l.account}`);
 });
-test('全200問：複合仕訳の並べ替えを許容し、片側金額の誤りを不正解にする',()=>{
+test('全300問：複合仕訳の並べ替えを許容し、片側金額の誤りを不正解にする',()=>{
   for(const q of QUESTIONS){
     const answer={debit:[...q.debit].reverse(),credit:[...q.credit].reverse()};
     assert.equal(gradeAnswer(answer,q),true,q.id);
@@ -65,7 +65,7 @@ test('誤答は直近の回答で解消。レベル・苦手論点・解答時�
 });
 test('ランダム10/30の元データ重複なし、レベル混合・配列非破壊',()=>{
   const source=filterLevel(QUESTIONS,'both'), out=shuffle(source);
-  assert.equal(source.length,200);assert.equal(out.length,200);assert.equal(new Set(out.slice(0,30).map(q=>q.id)).size,30);assert.equal(source[0].id,'B001');
+  assert.equal(source.length,300);assert.equal(out.length,300);assert.equal(new Set(out.slice(0,30).map(q=>q.id)).size,30);assert.equal(source[0].id,'B001');
 });
 test('バックアップ：通常・スキップの空行・不要な空行・不正入力の検証',()=>{
   const a=row('B001',true,1000);a.answer=structuredClone(a.answer);a.answer.debit.push({account:'',amount:''});
@@ -132,7 +132,40 @@ test('会計計算の独立検算：簿記論の正答金額と式の照合',()=
     ['Z121','debit','非支配株主持分',20000*.2],
     ['Z124','credit','評価差額',(400000-300000)*(1-.3)],
     ['Z125','credit','負ののれん発生益',(700000-100000)-500000],
-    ['Z126','debit','のれん',700000-(1000000-400000)]
+    ['Z126','debit','のれん',700000-(1000000-400000)],
+    // 追加分（2026-09-30.3）
+    ['Z131','debit','当座預金',83000-38000],
+    ['Z132','debit','不渡手形',200000+1000+500],
+    ['Z138','credit','受取利息',1000000*.03*6/12],
+    ['Z140','debit','商品評価損',250000*(720000/(900000+100000-200000))-250000*(720000/(900000+100000))],
+    ['Z150','debit','機械装置',500000-300000],
+    ['Z156','debit','前払利息',500000-480000],
+    ['Z161','debit','創立費償却',600000/60*6],
+    ['Z166','debit','貸倒引当金繰入',2000000*((1.2+1.5+1.8)/3/100)-10000],
+    ['Z167','debit','満期保有目的債券',(2000000-1940000)/5*9/12],
+    ['Z168','credit','有価証券売却益',1000000*99/100-985000],
+    ['Z172','debit','支払利息',30000-5000],
+    ['Z175','debit','貸付金',(1000000-970000)/3],
+    ['Z177','debit','為替差損益',220000-2000*108],
+    ['Z178','credit','有価証券利息',100*112],
+    ['Z178','credit','為替差損益',9800*115-(1067000+100*112)],
+    ['Z180','debit','為替予約',(143-140)*1000],
+    ['Z182','debit','為替差損益',3000*2/3],
+    ['Z183','debit','社債利息',(1000000-970000)/5],
+    ['Z184','credit','社債償還益',392000-400000*97/100],
+    ['Z185','debit','社債利息',1000000*.02*6/12],
+    ['Z189','credit','その他資本剰余金',1000000*.4-350000],
+    ['Z190','credit','その他資本剰余金',270000+30000-250000],
+    ['Z192','debit','株式報酬費用',1000*400-1000*500/2],
+    ['Z196','debit','繰延税金資産',300000*.3],
+    ['Z199','debit','普通預金',10000-2031],
+    ['Z203','debit','売掛金',60000+40000],
+    ['Z205','credit','契約負債',360000-360000/3],
+    ['Z207','credit','売上',1000*400/800-300],
+    ['Z222','debit','資本剰余金',120000-1000000*.1],
+    ['Z224','debit','売上高',10000*.3],
+    ['Z228','credit','移転損益',350000-(400000-100000)],
+    ['Z229','debit','子会社株式',400000-100000]
   ];
   for(const [id,side,account,expected]of checks)assert.equal(QUESTIONS.find(q=>q.id===id)[side].find(r=>r.account===account).amount,Math.round(expected*1e6)/1e6,id);
 });
