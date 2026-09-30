@@ -1,0 +1,4 @@
+node_modules/
+shiwake-backup-*.json
+*.log
+.DS_Store

@@ -1,0 +1,17 @@
+{
+  "id": "./",
+  "name": "仕訳トレーニング",
+  "short_name": "仕訳トレ",
+  "description": "簿記2級・税理士簿記論のオフライン仕訳トレーニング",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f6f8f5",
+  "theme_color": "#176b50",
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
