@@ -3,15 +3,15 @@ import assert from 'node:assert/strict';
 import {QUESTIONS,LEVELS} from '../questions.js';
 import {validateBank,gradeAnswer,validateAnswer,normalizeSide,evaluateExpression,appendKey,filterLevel,shuffle,questionStats,reviewPool,periodStats,streak,validateBackup} from '../core.js';
 
-test('327問（2級70・簿記論257）・ID一意・全正答の貸借一致・計算問題の収録',()=>{
-  assert.equal(QUESTIONS.length,327);assert.equal(validateBank(QUESTIONS),true);
-  assert.equal(filterLevel(QUESTIONS,'bookkeeping2').length,70);assert.equal(filterLevel(QUESTIONS,'zeirishi_boki').length,257);
+test('377問（2級70・簿記論307）・ID一意・全正答の貸借一致・計算問題の収録',()=>{
+  assert.equal(QUESTIONS.length,377);assert.equal(validateBank(QUESTIONS),true);
+  assert.equal(filterLevel(QUESTIONS,'bookkeeping2').length,70);assert.equal(filterLevel(QUESTIONS,'zeirishi_boki').length,307);
   assert.ok(filterLevel(QUESTIONS,'zeirishi_boki').filter(q=>q.requiresCalculation).length>=140);
   assert.ok(new Set(QUESTIONS.map(q=>q.category)).size>=50);
   // 正答の科目を誤答候補（distractors）に含めない。
   for(const q of QUESTIONS)for(const l of [...q.debit,...q.credit])assert.ok(!q.distractors.includes(l.account),`${q.id} ${l.account}`);
 });
-test('全327問：複合仕訳の並べ替えを許容し、片側金額の誤りを不正解にする',()=>{
+test('全377問：複合仕訳の並べ替えを許容し、片側金額の誤りを不正解にする',()=>{
   for(const q of QUESTIONS){
     const answer={debit:[...q.debit].reverse(),credit:[...q.credit].reverse()};
     assert.equal(gradeAnswer(answer,q),true,q.id);
@@ -65,7 +65,7 @@ test('誤答は直近の回答で解消。レベル・苦手論点・解答時�
 });
 test('ランダム10/30の元データ重複なし、レベル混合・配列非破壊',()=>{
   const source=filterLevel(QUESTIONS,'both'), out=shuffle(source);
-  assert.equal(source.length,327);assert.equal(out.length,327);assert.equal(new Set(out.slice(0,30).map(q=>q.id)).size,30);assert.equal(source[0].id,'B001');
+  assert.equal(source.length,377);assert.equal(out.length,377);assert.equal(new Set(out.slice(0,30).map(q=>q.id)).size,30);assert.equal(source[0].id,'B001');
 });
 test('バックアップ：通常・スキップの空行・不要な空行・不正入力の検証',()=>{
   const a=row('B001',true,1000);a.answer=structuredClone(a.answer);a.answer.debit.push({account:'',amount:''});
@@ -158,7 +158,7 @@ test('会計計算の独立検算：簿記論の正答金額と式の照合',()=
     ['Z190','credit','その他資本剰余金',270000+30000-250000],
     ['Z192','debit','株式報酬費用',1000*400-1000*500/2],
     ['Z196','debit','繰延税金資産',300000*.3],
-    ['Z199','debit','普通預金',10000-2031],
+    ['Z199','debit','普通預金',10000-Math.floor(10000*.15315)],
     ['Z203','debit','売掛金',60000+40000],
     ['Z205','credit','契約負債',360000-360000/3],
     ['Z207','credit','売上',1000*400/800-300],
@@ -187,7 +187,39 @@ test('会計計算の独立検算：簿記論の正答金額と式の照合',()=
     ['Z252','debit','繰延税金資産',400000*.3],
     ['Z253','debit','その他有価証券評価差額金',(200000-150000)*(1-.3)],
     ['Z256','credit','長期前受収益',1000000-(1200000-400000)],
-    ['Z257','debit','繰延税金負債',210000/(1-.3)/10*.3]
+    ['Z257','debit','繰延税金負債',210000/(1-.3)/10*.3],
+    // 追加分（2026-09-30.5）
+    ['Z259','credit','抱合せ株式消滅差益',(800000-300000)-400000],
+    ['Z263','credit','建物',150000-100000],
+    ['Z266','credit','自己新株予約権消却益',30000-25000],
+    ['Z267','debit','仕入',500000-100000],
+    ['Z268','debit','売上原価',10*1000+5*1100],
+    ['Z269','debit','売上原価',20*(10*1000+30*1200)/40],
+    ['Z270','debit','のれん',480000-(400000+200000+100000)*.6],
+    ['Z270','credit','非支配株主持分',(400000+200000+100000)*.4],
+    ['Z271','credit','負ののれん発生益',(400000+200000)-500000],
+    ['Z272','debit','非支配株主持分',50000*.3],
+    ['Z274','debit','売上原価',240000*.25],
+    ['Z277','debit','持分法による投資損益',80000*.25],
+    ['Z280','credit','特別償却準備金',100000*(1-.3)],
+    ['Z281','debit','繰延税金資産',(400000-300000)*.3],
+    ['Z283','credit','契約負債',Math.round(20000*2000/22000)],
+    ['Z286','credit','売上',90000*(50000+30000)/100000],
+    ['Z287','credit','返金負債',300000*.04],
+    ['Z288','debit','割賦売掛金',220000*.1],
+    ['Z290','debit','社債利息',961000*.03],
+    ['Z291','credit','満期保有目的債券',20000-1020000*.01],
+    ['Z293','debit','仮払法人税等',Math.floor(100000*.15315)],
+    ['Z294','debit','満期保有目的債券',(1000000-976000)/4*4/12],
+    ['Z298','credit','買掛金',1500*125],
+    ['Z300','debit','減価償却費',900000/6*9/12],
+    ['Z301','debit','減価償却費',(1000000-250000)*.25],
+    ['Z302','credit','固定資産売却益',250000-(800000-600000)],
+    ['Z303','debit','減損損失',1500000-Math.max(1000000,1050000)],
+    ['Z304','credit','普通預金',200000],
+    ['Z304','debit','リース債務',200000-800000*.04],
+    ['Z305','credit','利益準備金',Math.min(600000/10,8000000/4-(1600000+350000))],
+    ['Z307','credit','その他資本剰余金',150*650-150*(100*500+100*700)/200]
   ];
   for(const [id,side,account,expected]of checks)assert.equal(QUESTIONS.find(q=>q.id===id)[side].find(r=>r.account===account).amount,Math.round(expected*1e6)/1e6,id);
 });
