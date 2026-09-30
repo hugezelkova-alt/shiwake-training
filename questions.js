@@ -896,5 +896,22 @@ export const ACCOUNT_ALIASES = {
   '仮払消費税等': '仮払消費税',
   '仮受消費税等': '仮受消費税'
 };
+// 出題分野。論点（category）ごとに1つの分野へ振り分ける。
+export const GROUPS = { income: '損益会計', assets: '資産会計', liabilities: '負債・純資産会計', structure: '構造論点・その他' };
+export const CATEGORY_GROUPS = {
+  // 損益会計
+  '商品売買':'income','収益認識':'income','役務収益':'income','決算整理':'income','委託販売':'income','受託販売':'income','試用販売':'income','未着品売買':'income','割賦販売':'income',
+  '工事契約':'income','建設業会計':'income','契約資産・負債':'income','返品権付き販売':'income','ポイント制度':'income','本人と代理人':'income','変動対価':'income',
+  // 資産会計
+  '現金預金':'assets','債権債務':'assets','手形':'assets','電子記録債権債務':'assets','貸倒見積り':'assets','有価証券':'assets','デリバティブ':'assets',
+  '棚卸資産':'assets','売価還元法':'assets','低価法':'assets','固定資産':'assets','減価償却':'assets','減損':'assets','リース':'assets','圧縮記帳':'assets',
+  '資産除去債務':'assets','無形固定資産':'assets','研究開発費':'assets','繰延資産':'assets',
+  // 負債・純資産会計
+  '引当金':'liabilities','退職給付':'liabilities','社債':'liabilities','純資産':'liabilities','新株予約権':'liabilities',
+  // 構造論点・その他
+  '本支店会計':'structure','連結会計':'structure','企業結合':'structure','事業分離':'structure','在外子会社':'structure','包括利益':'structure','外貨換算':'structure',
+  '税金':'structure','税効果会計':'structure','会計上の変更':'structure','帳簿組織':'structure','工業簿記':'structure'
+};
+for (const question of QUESTIONS) question.group = CATEGORY_GROUPS[question.category];
 export const COMMON_ACCOUNTS = ['現金','普通預金','当座預金','売掛金','買掛金','仕入','売上','未払金','前払金','前受金','商品','繰越商品'];
 export const ALL_ACCOUNTS = [...new Set([...COMMON_ACCOUNTS, ...QUESTIONS.flatMap(q => [...q.debit,...q.credit].map(l => l.account).concat(q.distractors||[]))])].sort((a,b) => a.localeCompare(b,'ja'));

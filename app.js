@@ -1,5 +1,5 @@
-import { QUESTIONS, LEVELS, ALL_ACCOUNTS, COMMON_ACCOUNTS, BANK_VERSION } from './questions.js';
-import { gradeAnswer, validateAnswer, validateBank, filterLevel, shuffle, localDateKey, summarize, streak, periodStats, groupStats, questionStats, reviewPool, evaluateExpression, appendKey, validateBackup } from './core.js';
+import { QUESTIONS, LEVELS, GROUPS, ALL_ACCOUNTS, COMMON_ACCOUNTS, BANK_VERSION } from './questions.js';
+import { gradeAnswer, validateAnswer, validateBank, filterLevel, filterGroup, shuffle, localDateKey, summarize, streak, periodStats, groupStats, questionStats, reviewPool, evaluateExpression, appendKey, validateBackup } from './core.js';
 import { StudyStore } from './storage.js';
 
 const $ = selector => document.querySelector(selector);
@@ -9,12 +9,15 @@ const num=n=>Number(n).toLocaleString('ja-JP');
 const rate=s=>s.rate===null?'—':`${Math.round(s.rate*100)}%`;
 const seconds=n=>n===null?'—':`${Math.round(n*10)/10}秒`;
 const levelName=level=>level==='both'?'両方から出題':LEVELS[level]||level;
+const groupName=group=>group==='all'?'全分野':GROUPS[group]||group;
+// 選択中のレベルと分野で絞り込んだ出題範囲。
+const scopeQuestions=(level=settings.level,group=settings.group)=>filterGroup(filterLevel(QUESTIONS,level),group);
 const modeNames={'10':'ランダム10問','30':'ランダム30問',endless:'エンドレス',mistakes:'間違えた問題だけ',weak:'苦手論点だけ'};
 const bank=new Map(QUESTIONS.map(q=>[q.id,q]));
 const scope=new URL('.',location.href).pathname;
 const store=new StudyStore(scope);
 const draftKey=`shiwake-draft:${scope}`;
-let settings={level:'bookkeeping2',mode:'10'}, attempts=[], session=null, route='home', ready=false;
+let settings={level:'bookkeeping2',mode:'10',group:'all'}, attempts=[], session=null, route='home', ready=false;
 let runningSince=0, persistChain=Promise.resolve(), busy=false, saveFailed=false;
 let calc={expression:'',target:null,rounding:'exact',open:false,justEvaluated:false};
 let accountTarget=null,showAllAccounts=false,swRegistration=null,offlineReady=false;
@@ -62,17 +65,22 @@ function confirmAction(title,body,label='続ける') {
 }
 function levelsMarkup(selected) {return [...Object.keys(LEVELS),'both'].map(l=>`<option value="${esc(l)}" ${l===selected?'selected':''}>${esc(levelName(l))}</option>`).join('');}
 function levelPicker(){return `<div class="level-tabs" role="group" aria-label="出題レベル">${[...Object.keys(LEVELS),'both'].map(l=>`<button data-action="level" data-level="${esc(l)}" aria-pressed="${settings.level===l}">${l==='both'?'両方':esc(levelName(l))}</button>`).join('')}</div>`;}
+function groupPicker(){
+  const inLevel=filterLevel(QUESTIONS,settings.level);
+  return `<div class="mode-row"><label for="group">出題分野</label><select id="group">${['all',...Object.keys(GROUPS)].map(g=>`<option value="${g}" ${settings.group===g?'selected':''}>${esc(groupName(g))} ${filterGroup(inLevel,g).length}問</option>`).join('')}</select></div>`;
+}
 function header(kicker,title,description='') {return `<div class="page-heading"><p class="eyebrow">${esc(kicker)}</p><h1>${esc(title)}</h1>${description?`<p class="muted">${esc(description)}</p>`:''}</div>`;}
 function metric(label,value,unit=''){return `<div class="metric"><span>${label}</span><strong>${value}<small>${unit}</small></strong></div>`;}
 function home() {
-  const stats=periodStats(attempts), selected=filterLevel(QUESTIONS,settings.level);
+  const stats=periodStats(attempts), selected=scopeQuestions();
   app.innerHTML=header('DAILY PRACTICE','仕訳を、反射に。','1問ずつ。考えて、打って、身につける。')+
     `<section class="card training-start"><div class="section-title"><h2>今日のトレーニング</h2><span class="pill">全${QUESTIONS.length}問</span></div>
     <label class="small muted">現在の出題レベル</label>${levelPicker()}
+    ${groupPicker()}
     <div class="mode-row"><label for="mode">出題モード</label><select id="mode">${Object.entries(modeNames).map(([v,n])=>`<option value="${v}" ${settings.mode===v?'selected':''}>${n}</option>`).join('')}</select></div>
     <button class="primary start-button" data-action="start">トレーニング開始 <span aria-hidden="true">→</span></button>
     ${session?`<button class="secondary full" data-action="resume">前回の続きから再開 <small>(${session.results.length}問回答済み)</small></button>`:''}
-    <p class="small muted center">${esc(levelName(settings.level))} · ${selected.length}問収録 · 電卓付き</p></section>
+    <p class="small muted center">${esc(levelName(settings.level))} · ${esc(groupName(settings.group))} · ${selected.length}問 · 電卓付き</p></section>
     <section class="today-block"><div class="section-title"><h2>今日の積み上げ</h2><span class="small muted">${new Date().toLocaleDateString('ja-JP',{month:'long',day:'numeric'})}</span></div>
     <div class="metrics today-metrics">${metric('回答数',num(stats.today.count),'問')}${metric('正答率',rate(stats.today))}${metric('連続正解',num(streak(attempts)),'問')}</div></section>
     <div class="link-grid"><button class="link-card" data-action="review"><span class="link-symbol">↻</span><strong>間違えた問題</strong><small>今の弱点を、次の得点に</small><span class="arrow">→</span></button><button class="link-card" data-action="stats"><span class="link-symbol">▤</span><strong>学習記録</strong><small>正答率と解答スピード</small><span class="arrow">→</span></button></div>
@@ -81,11 +89,11 @@ function home() {
     <button class="text-button full" data-action="help">使い方・オフライン準備・バックアップ</button>`;
 }
 function review() {
-  const selected=filterLevel(QUESTIONS,settings.level), stats=questionStats(attempts);
+  const selected=scopeQuestions(), stats=questionStats(attempts);
   const mistakes=reviewPool(selected,attempts,'mistakes'), weak=reviewPool(selected,attempts,'weak');
   const ids=new Set(selected.map(q=>q.id));
   const cats=groupStats(attempts.filter(a=>ids.has(a.questionId)),'category');
-  app.innerHTML=header('REVIEW','弱点を、ひとつずつ。')+levelPicker()+
+  app.innerHTML=header('REVIEW','弱点を、ひとつずつ。')+levelPicker()+groupPicker()+
     `<div class="review-cards"><section class="card"><div class="section-title"><h2>間違えた問題</h2><span class="pill">${mistakes.length}問</span></div><p class="muted small">直近の回答が不正解の問題。正解すると外れます。</p><button class="primary full" data-action="start-mode" data-mode="mistakes" ${mistakes.length?'':'disabled'}>間違えた問題だけ</button></section>
     <section class="card"><div class="section-title"><h2>苦手論点</h2><span class="pill">${weak.length}問</span></div><p class="muted small">正答率・直近の誤答・回答時間から自動抽出。</p><button class="secondary full" data-action="start-mode" data-mode="weak" ${weak.length?'':'disabled'}>苦手論点だけ</button></section></div>
     <section class="card"><h2>論点別の状態</h2>${cats.length?cats.map(c=>`<div class="category-row"><div><strong>${esc(c.name)}</strong><small>${c.count}問 · 平均${seconds(c.average)}</small></div><span class="${c.rate<.8?'low-rate':''}">${rate(c)}</span>${weak.some(q=>q.category===c.name)?`<button class="text-button" data-action="weak-category" data-category="${esc(c.name)}">練習</button>`:'<span class="small muted">良好</span>'}</div>`).join(''):'<p class="empty">まずは10問。回答すると、苦手論点が見えてきます。</p>'}</section>
@@ -98,6 +106,7 @@ function statsScreen() {
   app.innerHTML=header('YOUR RECORD','積み重ねを、見える化。','端末内に保存されている全回答の記録。')+
     `<section class="card"><table class="stats-table"><caption class="sr-only">期間別学習記録</caption><thead><tr><th>期間</th><th>回答数</th><th>正答率</th><th>平均時間</th></tr></thead><tbody>${[['今日',ps.today],['直近7日',ps.week],['累計',ps.all]].map(([name,s])=>`<tr><th>${name}</th><td>${num(s.count)}</td><td>${rate(s)}</td><td>${seconds(s.average)}</td></tr>`).join('')}</tbody></table><p class="small muted">直近7日は今日を含む7日間。日付は端末の現地時間です。</p></section>
     <section class="card"><h2>レベル別</h2>${Object.entries(LEVELS).map(([key,name])=>{const s=summarize(attempts.filter(a=>a.level===key));return `<div class="category-row"><div><strong>${name}</strong><small>${num(s.count)}問 · 平均${seconds(s.average)}</small></div><strong>${rate(s)}</strong></div>`;}).join('')}</section>
+    <section class="card"><h2>分野別</h2>${Object.entries(GROUPS).map(([key,name])=>{const s=summarize(attempts.filter(a=>bank.get(a.questionId)?.group===key));return `<div class="category-row"><div><strong>${esc(name)}</strong><small>${num(s.count)}問 · 平均${seconds(s.average)}</small></div><strong class="${s.rate!==null&&s.rate<.8?'low-rate':''}">${rate(s)}</strong></div>`;}).join('')}</section>
     <section class="card"><h2>カテゴリー別 <small class="muted">正答率の低い順</small></h2>${groups.length?groups.map(g=>`<div class="category-row"><div><strong>${esc(g.name)}</strong><small>${g.count}問 · 平均${seconds(g.average)}</small></div><strong class="${g.rate<.8?'low-rate':''}">${rate(g)}</strong></div>`).join(''):'<p class="empty">まだ回答がありません。</p>'}</section>
     <section class="card"><details><summary>各問題の記録 <span class="muted">${perQuestion.size}問</span></summary>${[...perQuestion].map(([id,s])=>`<div class="question-record"><strong>${id} · ${esc(bank.get(id)?.category||'')}</strong><p>${s.count}回 / 正解${s.correct} / 不正解${s.wrong} / ${rate(s)}<br>平均${seconds(s.average)} · 連続正解${s.streak}<br>最終：${new Date(s.last.at).toLocaleString('ja-JP')}</p></div>`).join('')||'<p class="empty">まだ回答がありません。</p>'}</details></section>
     <button class="text-button full" data-action="help">学習データのバックアップ・復元</button>`;
@@ -107,15 +116,15 @@ function help() {
     `<section class="card"><h2>1問ずつ、高速に</h2><ol class="steps"><li>レベルとモードを選び、開始。</li><li>借方・貸方の科目を候補から選択。</li><li>金額欄をタップし、下の電卓で入力。</li><li>「金額に反映」で転記し、「回答する」。</li><li>短い解説を確認して、次へ。</li></ol><p class="small muted">通常問題は10〜30秒が目安。計算問題は正確さを優先しましょう。アプリを離れている間は計測を止めます。</p></section>
     <section class="card"><h2>iPhoneでアプリにする</h2><ol class="steps"><li>公開URLをSafariで開く。</li><li>上部が「オフライン準備完了」になるのを待つ。</li><li>共有 → ホーム画面に追加 → 追加。表示される場合は「ウェブアプリとして開く」をオン。</li><li>ホーム画面のアイコンからオンラインで一度起動し、準備完了を確認。</li><li>機内モードにしてアプリを閉じ、アイコンから再起動。</li></ol><p class="small muted">保存領域がSafariとホーム画面アプリで分かれる場合があります。以後はホーム画面側に統一して学習してください。</p><p id="offline-detail" class="small">${offlineReady?'すべての学習ファイルを保存済みです。':'通信できる状態で、画面上部の準備完了を確認してください。'}</p><button class="secondary full" data-action="check-update">オフライン準備・更新を確認</button></section>
     <section class="card"><h2>学習データのバックアップ</h2><p>履歴はこの端末に保存されます。機種変更やSafariのデータ削除に備え、定期的に書き出してください。</p><button class="primary full" data-action="export">履歴をJSONで書き出す</button><label class="secondary full file-label">バックアップを読み込む<input id="import-file" type="file" accept=".json,application/json"></label><p class="small muted">読み込みは既存履歴に統合し、同じ回答は重複させません。選択レベルはバックアップの設定になり、回答途中の問題は終了します。バックアップは公開用リポジトリに入れないでください。</p></section>
-    <section class="card"><h2>出題・採点の約束</h2><p>金額の単位は円。消費税は指定された問題だけで考慮します。指定された処理方法と科目で回答してください。</p><p>複合仕訳は行の順序を問いません。同じ側の同一科目は合算して採点します。借方と貸方の相殺はしません。</p><p>「わからない」は誤答として記録。「間違えた問題」は、その後に正解すると一覧から外れます。収録${QUESTIONS.length}問は試験範囲の一部です。</p><p class="small muted">問題データ ${BANK_VERSION} · アプリ 1.0.6<br>端末の容量不足・データ削除等による消失を完全には防げません。</p></section>`;
+    <section class="card"><h2>出題・採点の約束</h2><p>金額の単位は円。消費税は指定された問題だけで考慮します。指定された処理方法と科目で回答してください。</p><p>複合仕訳は行の順序を問いません。同じ側の同一科目は合算して採点します。借方と貸方の相殺はしません。</p><p>「わからない」は誤答として記録。「間違えた問題」は、その後に正解すると一覧から外れます。収録${QUESTIONS.length}問は試験範囲の一部です。</p><p class="small muted">問題データ ${BANK_VERSION} · アプリ 1.1.0<br>端末の容量不足・データ削除等による消失を完全には防げません。</p></section>`;
 }
 async function createSession(mode=settings.mode,category='',force=false) {
-  const source=reviewPool(filterLevel(QUESTIONS,settings.level),attempts,mode,category);
+  const source=reviewPool(scopeQuestions(),attempts,mode,category);
   if(!source.length){toast('対象の問題がありません。まずはランダムで練習しましょう。');return;}
   if(session&&!force&&!await confirmAction('新しく始めますか？','回答済みの履歴は保存されています。今のトレーニングを終了して、新しい問題を開始します。','新しく始める'))return;
   pauseTimer();settings.mode=mode;
   let queue=shuffle(source.map(q=>q.id));if(mode==='10'||mode==='30')queue=queue.slice(0,Number(mode));
-  session={id:crypto.randomUUID(),level:settings.level,mode,category,queue,index:0,results:[],draft:blankAnswer(),elapsedMs:0,feedback:null,savedAt:Date.now()};
+  session={id:crypto.randomUUID(),level:settings.level,group:settings.group,mode,category,queue,index:0,results:[],draft:blankAnswer(),elapsedMs:0,feedback:null,savedAt:Date.now()};
   calc={expression:'',target:null,rounding:'exact',open:false,justEvaluated:false};
   await saveSettings();await saveSession();
   navigator.storage?.persist?.().catch(()=>{});
@@ -131,7 +140,7 @@ function train() {
   const i=session.results.length+(session.feedback?0:1), total=session.mode==='endless'?'∞':session.queue.length;
   app.innerHTML=`<div class="training-toolbar"><button class="text-button" data-action="pause">‹ 中断</button><select id="train-level" aria-label="出題レベルを変更">${levelsMarkup(session.level)}</select><span class="small muted" id="question-timer">${timerValue()}秒</span></div>
     <div class="question-progress"><span>${esc(modeNames[session.mode])}</span><strong>${i} <span>/ ${total}</span></strong></div>
-    <article class="question-card"><div class="question-meta"><span class="pill">${esc(q.category)}</span><span class="small muted">${LEVELS[q.level]} · ${q.requiresCalculation?'計算あり':'瞬発'} · ${'●'.repeat(q.difficulty)}${'○'.repeat(3-q.difficulty)}</span></div><h1 class="question-text">${esc(q.prompt)}</h1><div class="question-foot"><span>金額：円 / 指示のない消費税は考慮不要</span><span>${q.id}</span></div></article>
+    <article class="question-card"><div class="question-meta"><span class="pill">${esc(q.category)}</span><span class="small muted">${LEVELS[q.level]} · ${esc(GROUPS[q.group]||'')} · ${q.requiresCalculation?'計算あり':'瞬発'} · ${'●'.repeat(q.difficulty)}${'○'.repeat(3-q.difficulty)}</span></div><h1 class="question-text">${esc(q.prompt)}</h1><div class="question-foot"><span>金額：円 / 指示のない消費税は考慮不要</span><span>${q.id}</span></div></article>
     ${session.feedback?feedbackMarkup(q):`<div id="answer-editor" class="answer-editor">${rowsMarkup('debit')}${rowsMarkup('credit')}</div><div class="balance"><span>借方合計 <b id="debit-total">${num(totalSide('debit'))}</b></span><span>貸方合計 <b id="credit-total">${num(totalSide('credit'))}</b></span></div><p class="entry-hint small muted">科目を選ぶ → 金額をタップ → 電卓で入力</p><button class="text-button skip-button" data-action="skip">わからない · 解答を見る</button><p id="answer-error" class="inline-error" role="alert"></p>`}`;
   renderDock();observeQuestion();startTimer();
 }
@@ -249,7 +258,7 @@ async function nextQuestion(){
   if(busy||!session?.feedback)return;
   if(session.index===session.queue.length-1&&session.mode!=='endless'){navigate('summary');return;}
   if(session.index===session.queue.length-1){
-    const last=session.queue.at(-1);session.queue=shuffle(filterLevel(QUESTIONS,session.level).map(q=>q.id));
+    const last=session.queue.at(-1);session.queue=shuffle(scopeQuestions(session.level,session.group||'all').map(q=>q.id));
     if(session.queue[0]===last&&session.queue.length>1)[session.queue[0],session.queue[1]]=[session.queue[1],session.queue[0]];
     session.index=0;
   }else session.index++;
@@ -261,7 +270,7 @@ function summary(){
   if(!session){navigate('home');return;}
   const ids=new Set(session.results), rows=attempts.filter(a=>ids.has(a.id)), s=summarize(rows);
   app.innerHTML=header('SESSION COMPLETE','おつかれさまでした。','次の1問につながる、今日の積み上げ。')+
-    `<section class="card summary-card"><span class="pill">${esc(levelName(session.level))} · ${esc(modeNames[session.mode])}</span><p class="big-score">${s.correct}<small> / ${s.count}</small></p><p class="muted">正解</p><div class="metrics">${metric('正答率',rate(s))}${metric('平均時間',seconds(s.average))}</div></section>
+    `<section class="card summary-card"><span class="pill">${esc(levelName(session.level))} · ${esc(groupName(session.group||'all'))} · ${esc(modeNames[session.mode])}</span><p class="big-score">${s.correct}<small> / ${s.count}</small></p><p class="muted">正解</p><div class="metrics">${metric('正答率',rate(s))}${metric('平均時間',seconds(s.average))}</div></section>
     <button class="primary full" data-action="restart">もう一度トレーニング</button><button class="secondary full" data-action="finish">ホームへ戻る</button>
     ${s.wrong?`<section class="card"><h2>今回つまずいた論点</h2>${[...new Set(rows.filter(a=>!a.correct).map(a=>a.category))].map(c=>`<span class="pill result-tag">${esc(c)}</span>`).join('')}<button class="text-button full" data-action="finish-review">間違えた問題を復習する →</button></section>`:''}`;
 }
@@ -337,6 +346,7 @@ $('#all-accounts').addEventListener('click',()=>{showAllAccounts=true;renderAcco
 document.addEventListener('change',async e=>{
   try{
     if(e.target.id==='mode'){settings.mode=e.target.value;await saveSettings();}
+    if(e.target.id==='group'){settings.group=e.target.value;await saveSettings();({home,review})[route]?.();}
     if(e.target.id==='rounding'){calc.rounding=e.target.value;refreshCalc();}
     if(e.target.id==='train-level'){
       pauseTimer();const level=e.target.value;
@@ -403,6 +413,7 @@ async function boot(){
       }
     }catch{/* 破損した下書きはIndexedDBの確定内容へフォールバック */}
     if(!['both',...Object.keys(LEVELS)].includes(settings.level))settings.level='bookkeeping2';
+    if(!['all',...Object.keys(GROUPS)].includes(settings.group))settings.group='all';
     if(session&&(!session.queue?.every(id=>bank.has(id))||session.index>=session.queue.length||!session.draft||!Array.isArray(session.results))){session=null;toast('問題データを更新しました。新しいトレーニングを始めてください。');}
     ready=true;await renderRoute();setupWorker();
   }catch(e){

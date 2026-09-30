@@ -77,5 +77,13 @@ test('画面結合：10問、電卓転記、複合仕訳、誤答比較、復習
     click('[data-action="pause"]');await wait(()=>!!$('[data-action="resume"]'));
     click('[data-action="resume"]');await wait(()=>!!$('#answer-editor'));assert.match($('.question-text').textContent,/販売委託/);
     assert.equal((await observer.read()).attempts.length,10);
+    // 分野を「構造論点・その他」に絞ると、その分野の問題だけが出題される。
+    click('[data-action="pause"]');await wait(()=>!!$('#group'));
+    const group=$('#group');group.value='structure';group.dispatchEvent(new dom.window.Event('change',{bubbles:true}));
+    await wait(async()=> (await observer.read()).settings.group==='structure');
+    assert.match($('#app').textContent,/構造論点・その他/);
+    click('[data-action="start"]');await wait(()=>$('#confirm-dialog').hasAttribute('open'));click('#confirm-ok');
+    await wait(()=>!!$('#answer-editor'));assert.match($('.question-meta').textContent,/構造論点・その他/);
+    assert.match($('.question-text').textContent,/将来減算一時差異/);
   }finally{Math.random=realRandom;for(const id of timers)clearInterval(id);globalThis.setInterval=nativeInterval;observer.db.close();dom.window.close();}
 });

@@ -34,13 +34,14 @@ export function validateBank(questions) {
   for (const q of questions) {
     if (ids.has(q.id)) throw new Error(`重複ID: ${q.id}`);
     ids.add(q.id);
-    if (!q.id || !q.level || !q.category || !q.prompt || !q.explanation || ![1,2,3].includes(q.difficulty) || typeof q.requiresCalculation !== 'boolean') throw new Error(`問題属性の不足: ${q.id}`);
+    if (!q.id || !q.level || !q.category || !q.group || !q.prompt || !q.explanation || ![1,2,3].includes(q.difficulty) || typeof q.requiresCalculation !== 'boolean') throw new Error(`問題属性の不足: ${q.id}`);
     const sum = side => normalizeSide(q[side]).reduce((s,[,v])=>s+v,0);
     if (!sum('debit') || sum('debit') !== sum('credit')) throw new Error(`貸借不一致: ${q.id}`);
   }
   return true;
 }
 export const filterLevel = (questions, level) => level === 'both' ? questions : questions.filter(q=>q.level === level);
+export const filterGroup = (questions, group = 'all') => group === 'all' ? questions : questions.filter(q=>q.group === group);
 export function shuffle(items, random = Math.random) {
   const out = [...items];
   for(let i=out.length-1; i>0; i--) { const j=Math.floor(random()*(i+1)); [out[i],out[j]]=[out[j],out[i]]; }
@@ -169,5 +170,7 @@ export function validateBackup(data, questions) {
   }).sort((a,b)=>a.at-b.at);
   const levels=new Set(['both',...questions.map(q=>q.level)]);
   const level=levels.has(data.settings?.level)?data.settings.level:'bookkeeping2';
-  return {attempts,settings:{level,mode:['10','30','endless','mistakes','weak'].includes(data.settings?.mode)?data.settings.mode:'10'}};
+  const groups=new Set(['all',...questions.map(q=>q.group)]);
+  const group=groups.has(data.settings?.group)?data.settings.group:'all';
+  return {attempts,settings:{level,group,mode:['10','30','endless','mistakes','weak'].includes(data.settings?.mode)?data.settings.mode:'10'}};
 }

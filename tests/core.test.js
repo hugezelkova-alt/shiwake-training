@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {QUESTIONS,LEVELS} from '../questions.js';
-import {validateBank,gradeAnswer,validateAnswer,normalizeSide,evaluateExpression,appendKey,filterLevel,shuffle,questionStats,reviewPool,periodStats,streak,validateBackup} from '../core.js';
+import {QUESTIONS,LEVELS,GROUPS,CATEGORY_GROUPS} from '../questions.js';
+import {validateBank,gradeAnswer,validateAnswer,normalizeSide,evaluateExpression,appendKey,filterLevel,filterGroup,shuffle,questionStats,reviewPool,periodStats,streak,validateBackup} from '../core.js';
 
 test('437問（2級70・簿記論367）・ID一意・全正答の貸借一致・計算問題の収録',()=>{
   assert.equal(QUESTIONS.length,437);assert.equal(validateBank(QUESTIONS),true);
@@ -10,6 +10,14 @@ test('437問（2級70・簿記論367）・ID一意・全正答の貸借一致・
   assert.ok(new Set(QUESTIONS.map(q=>q.category)).size>=50);
   // 正答の科目を誤答候補（distractors）に含めない。
   for(const q of QUESTIONS)for(const l of [...q.debit,...q.credit])assert.ok(!q.distractors.includes(l.account),`${q.id} ${l.account}`);
+});
+test('4分野：全論点がいずれかの分野に属し、各分野に簿記論の問題がある',()=>{
+  for(const q of QUESTIONS)assert.ok(Object.hasOwn(GROUPS,q.group),`${q.id} ${q.category}`);
+  for(const category of Object.keys(CATEGORY_GROUPS))assert.ok(Object.hasOwn(GROUPS,CATEGORY_GROUPS[category]),category);
+  const boki=filterLevel(QUESTIONS,'zeirishi_boki');let total=0;
+  for(const group of Object.keys(GROUPS)){const n=filterGroup(boki,group).length;assert.ok(n>=40,`${group}: ${n}`);total+=n;}
+  assert.equal(total,boki.length);assert.equal(filterGroup(boki,'all').length,boki.length);
+  assert.ok(filterGroup(QUESTIONS,'liabilities').every(q=>q.group==='liabilities'));
 });
 test('全437問：複合仕訳の並べ替えを許容し、片側金額の誤りを不正解にする',()=>{
   for(const q of QUESTIONS){
@@ -73,6 +81,9 @@ test('バックアップ：通常・スキップの空行・不要な空行・�
   const data={app:'shiwake-training',version:1,settings:{level:'both',mode:'30'},attempts:[a,skipped]};
   assert.equal(validateBackup(data,QUESTIONS).attempts.length,2);
   assert.equal(validateBackup(data,QUESTIONS).settings.level,'both');
+  assert.equal(validateBackup(data,QUESTIONS).settings.group,'all');
+  assert.equal(validateBackup({...data,settings:{...data.settings,group:'structure'}},QUESTIONS).settings.group,'structure');
+  assert.equal(validateBackup({...data,settings:{...data.settings,group:'unknown'}},QUESTIONS).settings.group,'all');
   assert.throws(()=>validateBackup({...data,attempts:[a,a]},QUESTIONS));
   assert.throws(()=>validateBackup({...data,attempts:[{...a,at:NaN}]},QUESTIONS));
   assert.throws(()=>validateBackup({...data,attempts:[{...a,questionId:'unknown'}]},QUESTIONS));
