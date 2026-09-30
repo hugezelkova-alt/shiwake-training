@@ -3,15 +3,15 @@ import assert from 'node:assert/strict';
 import {QUESTIONS,LEVELS} from '../questions.js';
 import {validateBank,gradeAnswer,validateAnswer,normalizeSide,evaluateExpression,appendKey,filterLevel,shuffle,questionStats,reviewPool,periodStats,streak,validateBackup} from '../core.js';
 
-test('377問（2級70・簿記論307）・ID一意・全正答の貸借一致・計算問題の収録',()=>{
-  assert.equal(QUESTIONS.length,377);assert.equal(validateBank(QUESTIONS),true);
-  assert.equal(filterLevel(QUESTIONS,'bookkeeping2').length,70);assert.equal(filterLevel(QUESTIONS,'zeirishi_boki').length,307);
+test('437問（2級70・簿記論367）・ID一意・全正答の貸借一致・計算問題の収録',()=>{
+  assert.equal(QUESTIONS.length,437);assert.equal(validateBank(QUESTIONS),true);
+  assert.equal(filterLevel(QUESTIONS,'bookkeeping2').length,70);assert.equal(filterLevel(QUESTIONS,'zeirishi_boki').length,367);
   assert.ok(filterLevel(QUESTIONS,'zeirishi_boki').filter(q=>q.requiresCalculation).length>=140);
   assert.ok(new Set(QUESTIONS.map(q=>q.category)).size>=50);
   // 正答の科目を誤答候補（distractors）に含めない。
   for(const q of QUESTIONS)for(const l of [...q.debit,...q.credit])assert.ok(!q.distractors.includes(l.account),`${q.id} ${l.account}`);
 });
-test('全377問：複合仕訳の並べ替えを許容し、片側金額の誤りを不正解にする',()=>{
+test('全437問：複合仕訳の並べ替えを許容し、片側金額の誤りを不正解にする',()=>{
   for(const q of QUESTIONS){
     const answer={debit:[...q.debit].reverse(),credit:[...q.credit].reverse()};
     assert.equal(gradeAnswer(answer,q),true,q.id);
@@ -65,7 +65,7 @@ test('誤答は直近の回答で解消。レベル・苦手論点・解答時�
 });
 test('ランダム10/30の元データ重複なし、レベル混合・配列非破壊',()=>{
   const source=filterLevel(QUESTIONS,'both'), out=shuffle(source);
-  assert.equal(source.length,377);assert.equal(out.length,377);assert.equal(new Set(out.slice(0,30).map(q=>q.id)).size,30);assert.equal(source[0].id,'B001');
+  assert.equal(source.length,437);assert.equal(out.length,437);assert.equal(new Set(out.slice(0,30).map(q=>q.id)).size,30);assert.equal(source[0].id,'B001');
 });
 test('バックアップ：通常・スキップの空行・不要な空行・不正入力の検証',()=>{
   const a=row('B001',true,1000);a.answer=structuredClone(a.answer);a.answer.debit.push({account:'',amount:''});
@@ -219,7 +219,40 @@ test('会計計算の独立検算：簿記論の正答金額と式の照合',()=
     ['Z304','credit','普通預金',200000],
     ['Z304','debit','リース債務',200000-800000*.04],
     ['Z305','credit','利益準備金',Math.min(600000/10,8000000/4-(1600000+350000))],
-    ['Z307','credit','その他資本剰余金',150*650-150*(100*500+100*700)/200]
+    ['Z307','credit','その他資本剰余金',150*650-150*(100*500+100*700)/200],
+    // 追加分（2026-09-30.6）
+    ['Z309','debit','繰越商品',400000*1200000/1600000],
+    ['Z310','debit','商品評価損',190*(500-450)],
+    ['Z311','debit','商品',70000+30000],
+    ['Z314','debit','売掛金',300000-30000-6000],
+    ['Z317','debit','減価償却費',600000*.9/8],
+    ['Z319','debit','前払リース料',120000*9/12],
+    ['Z320','debit','ソフトウェア償却',480000/60*7],
+    ['Z321','debit','のれん償却',240000/20*6/12],
+    ['Z322','debit','固定資産除却損',600000-400000-50000],
+    ['Z323','debit','建物',500000*(8-5)/8],
+    ['Z324','debit','満期保有目的債券',945000*.05-30000],
+    ['Z326','debit','売買目的有価証券',(230000-200000)+(130000-150000)],
+    ['Z330','credit','先物損益',22000-15000],
+    ['Z331','credit','繰延ヘッジ損益',50000*(1-.3)],
+    ['Z333','debit','為替差損益',1500*115-165000],
+    ['Z334','debit','売掛金',2000*134-260000],
+    ['Z335','credit','売掛金',(130-126)*1000],
+    ['Z336','credit','為替予約',(143-140)*1000],
+    ['Z337','debit','外貨預金',5000*112-550000],
+    ['Z338','debit','社債償還損',500000*99/100-494000],
+    ['Z341','credit','利益準備金',700000/10],
+    ['Z341','credit','資本準備金',300000/10],
+    ['Z344','debit','株式交付費償却',36000/36*9],
+    ['Z347','credit','未払法人税等',500000-(200000+15315)],
+    ['Z350','debit','繰延税金負債',100000*(.30-.28)],
+    ['Z352','credit','売上',240000*9/12],
+    ['Z353','debit','契約負債',Math.round(1818*500/2000)],
+    ['Z356','debit','売上原価',(200-10)*1200],
+    ['Z358','debit','のれん',700000-(500000+300000)*.7],
+    ['Z361','debit','売上原価',144000*20/120],
+    ['Z363','debit','利益剰余金',30000*.8],
+    ['Z364','debit','投資有価証券',300000*.35]
   ];
   for(const [id,side,account,expected]of checks)assert.equal(QUESTIONS.find(q=>q.id===id)[side].find(r=>r.account===account).amount,Math.round(expected*1e6)/1e6,id);
 });

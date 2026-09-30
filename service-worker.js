@@ -1,5 +1,5 @@
 // ファイルや問題を更新するたび、このVERSIONを必ず変更してください。
-const VERSION = 'v1.0.5';
+const VERSION = 'v1.0.6';
 const PREFIX = `shiwake:${self.registration.scope}:`;
 const CACHE = PREFIX + VERSION;
 const ASSETS = ['./','./index.html','./styles.css','./app.js','./core.js','./storage.js','./questions.js','./manifest.json','./icons/icon-192.png','./icons/icon-512.png','./icons/maskable-512.png','./icons/apple-touch-icon.png'];
