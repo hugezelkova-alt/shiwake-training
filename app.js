@@ -12,7 +12,7 @@ const levelName=level=>level==='both'?'両方から出題':LEVELS[level]||level;
 const groupName=group=>group==='all'?'全分野':GROUPS[group]||group;
 // 選択中のレベルと分野で絞り込んだ出題範囲。
 const scopeQuestions=(level=settings.level,group=settings.group)=>filterGroup(filterLevel(QUESTIONS,level),group);
-const modeNames={'10':'ランダム10問','30':'ランダム30問',endless:'エンドレス',mistakes:'間違えた問題だけ',weak:'苦手論点だけ'};
+const modeNames={'3':'ランダム3問','5':'ランダム5問','10':'ランダム10問','30':'ランダム30問',endless:'エンドレス',mistakes:'間違えた問題だけ',weak:'苦手論点だけ'};
 const bank=new Map(QUESTIONS.map(q=>[q.id,q]));
 const scope=new URL('.',location.href).pathname;
 const store=new StudyStore(scope);
@@ -116,14 +116,14 @@ function help() {
     `<section class="card"><h2>1問ずつ、高速に</h2><ol class="steps"><li>レベルとモードを選び、開始。</li><li>借方・貸方の科目を候補から選択。</li><li>金額欄をタップし、下の電卓で入力。</li><li>「金額に反映」で転記し、「回答する」。</li><li>短い解説を確認して、次へ。</li></ol><p class="small muted">通常問題は10〜30秒が目安。計算問題は正確さを優先しましょう。アプリを離れている間は計測を止めます。</p></section>
     <section class="card"><h2>iPhoneでアプリにする</h2><ol class="steps"><li>公開URLをSafariで開く。</li><li>上部が「オフライン準備完了」になるのを待つ。</li><li>共有 → ホーム画面に追加 → 追加。表示される場合は「ウェブアプリとして開く」をオン。</li><li>ホーム画面のアイコンからオンラインで一度起動し、準備完了を確認。</li><li>機内モードにしてアプリを閉じ、アイコンから再起動。</li></ol><p class="small muted">保存領域がSafariとホーム画面アプリで分かれる場合があります。以後はホーム画面側に統一して学習してください。</p><p id="offline-detail" class="small">${offlineReady?'すべての学習ファイルを保存済みです。':'通信できる状態で、画面上部の準備完了を確認してください。'}</p><button class="secondary full" data-action="check-update">オフライン準備・更新を確認</button></section>
     <section class="card"><h2>学習データのバックアップ</h2><p>履歴はこの端末に保存されます。機種変更やSafariのデータ削除に備え、定期的に書き出してください。</p><button class="primary full" data-action="export">履歴をJSONで書き出す</button><label class="secondary full file-label">バックアップを読み込む<input id="import-file" type="file" accept=".json,application/json"></label><p class="small muted">読み込みは既存履歴に統合し、同じ回答は重複させません。選択レベルはバックアップの設定になり、回答途中の問題は終了します。バックアップは公開用リポジトリに入れないでください。</p></section>
-    <section class="card"><h2>出題・採点の約束</h2><p>金額の単位は円。消費税は指定された問題だけで考慮します。指定された処理方法と科目で回答してください。</p><p>複合仕訳は行の順序を問いません。同じ側の同一科目は合算して採点します。借方と貸方の相殺はしません。</p><p>「わからない」は誤答として記録。「間違えた問題」は、その後に正解すると一覧から外れます。収録${QUESTIONS.length}問は試験範囲の一部です。</p><p class="small muted">問題データ ${BANK_VERSION} · アプリ 1.1.0<br>端末の容量不足・データ削除等による消失を完全には防げません。</p></section>`;
+    <section class="card"><h2>出題・採点の約束</h2><p>金額の単位は円。消費税は指定された問題だけで考慮します。指定された処理方法と科目で回答してください。</p><p>複合仕訳は行の順序を問いません。同じ側の同一科目は合算して採点します。借方と貸方の相殺はしません。</p><p>「わからない」は誤答として記録。「間違えた問題」は、その後に正解すると一覧から外れます。収録${QUESTIONS.length}問は試験範囲の一部です。</p><p class="small muted">問題データ ${BANK_VERSION} · アプリ 1.1.1<br>端末の容量不足・データ削除等による消失を完全には防げません。</p></section>`;
 }
 async function createSession(mode=settings.mode,category='',force=false) {
   const source=reviewPool(scopeQuestions(),attempts,mode,category);
   if(!source.length){toast('対象の問題がありません。まずはランダムで練習しましょう。');return;}
   if(session&&!force&&!await confirmAction('新しく始めますか？','回答済みの履歴は保存されています。今のトレーニングを終了して、新しい問題を開始します。','新しく始める'))return;
   pauseTimer();settings.mode=mode;
-  let queue=shuffle(source.map(q=>q.id));if(mode==='10'||mode==='30')queue=queue.slice(0,Number(mode));
+  let queue=shuffle(source.map(q=>q.id));if(['3','5','10','30'].includes(mode))queue=queue.slice(0,Number(mode));
   session={id:crypto.randomUUID(),level:settings.level,group:settings.group,mode,category,queue,index:0,results:[],draft:blankAnswer(),elapsedMs:0,feedback:null,savedAt:Date.now()};
   calc={expression:'',target:null,rounding:'exact',open:false,justEvaluated:false};
   await saveSettings();await saveSession();

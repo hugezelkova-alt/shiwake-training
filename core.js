@@ -172,5 +172,5 @@ export function validateBackup(data, questions) {
   const level=levels.has(data.settings?.level)?data.settings.level:'bookkeeping2';
   const groups=new Set(['all',...questions.map(q=>q.group)]);
   const group=groups.has(data.settings?.group)?data.settings.group:'all';
-  return {attempts,settings:{level,group,mode:['10','30','endless','mistakes','weak'].includes(data.settings?.mode)?data.settings.mode:'10'}};
+  return {attempts,settings:{level,group,mode:['3','5','10','30','endless','mistakes','weak'].includes(data.settings?.mode)?data.settings.mode:'10'}};
 }

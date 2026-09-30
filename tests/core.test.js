@@ -82,6 +82,7 @@ test('バックアップ：通常・スキップの空行・不要な空行・�
   assert.equal(validateBackup(data,QUESTIONS).attempts.length,2);
   assert.equal(validateBackup(data,QUESTIONS).settings.level,'both');
   assert.equal(validateBackup(data,QUESTIONS).settings.group,'all');
+  for(const mode of ['3','5'])assert.equal(validateBackup({...data,settings:{...data.settings,mode}},QUESTIONS).settings.mode,mode);
   assert.equal(validateBackup({...data,settings:{...data.settings,group:'structure'}},QUESTIONS).settings.group,'structure');
   assert.equal(validateBackup({...data,settings:{...data.settings,group:'unknown'}},QUESTIONS).settings.group,'all');
   assert.throws(()=>validateBackup({...data,attempts:[a,a]},QUESTIONS));

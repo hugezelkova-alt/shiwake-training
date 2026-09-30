@@ -85,5 +85,13 @@ test('画面結合：10問、電卓転記、複合仕訳、誤答比較、復習
     click('[data-action="start"]');await wait(()=>$('#confirm-dialog').hasAttribute('open'));click('#confirm-ok');
     await wait(()=>!!$('#answer-editor'));assert.match($('.question-meta').textContent,/構造論点・その他/);
     assert.match($('.question-text').textContent,/将来減算一時差異/);
+    // ランダム3問：3問で結果画面になる。
+    click('[data-action="pause"]');await wait(()=>!!$('#mode'));
+    const mode=$('#mode');mode.value='3';mode.dispatchEvent(new dom.window.Event('change',{bubbles:true}));
+    await wait(async()=> (await observer.read()).settings.mode==='3');
+    click('[data-action="start"]');await wait(()=>$('#confirm-dialog').hasAttribute('open'));click('#confirm-ok');
+    await wait(()=>!!$('#answer-editor'));assert.match($('.question-progress').textContent,/1\s*\/\s*3/);
+    for(let i=0;i<3;i++){click('[data-action="skip"]');await wait(()=>!!$('.feedback.incorrect'));click('[data-action="next"]');await wait(()=>i<2?!!$('#answer-editor'):!!$('.summary-card'));}
+    assert.match($('.big-score').textContent,/0\s*\/\s*3/);
   }finally{Math.random=realRandom;for(const id of timers)clearInterval(id);globalThis.setInterval=nativeInterval;observer.db.close();dom.window.close();}
 });
